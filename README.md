@@ -4,8 +4,6 @@ An AI-powered day trading execution agent built with Claude and Alpaca. Clarence
 
 > **WARNING: This software can execute real trades with real money.** By setting `ALPACA_PAPER_TRADE=False`, you enable live trading. You are solely responsible for any financial losses incurred. The author(s) of this project accept no responsibility or liability for any trading losses, damages, or financial harm resulting from the use of this software. Use at your own risk.
 
-<img width="979" height="651" alt="Clarence CLI" src="https://github.com/user-attachments/assets/5a2859d4-53cf-4638-998a-15cef3c98038" />
-
 ## How It Works
 
 Clarence operates in two modes:
