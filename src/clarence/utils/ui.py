@@ -7,8 +7,8 @@ from functools import wraps
 
 
 class Colors:
-    BLUE = "\033[94m"
-    CYAN = "\033[96m"
+    BLUE = "\033[38;2;222;124;60m"  # Claude Orange
+    CYAN = "\033[38;2;255;165;0m"   # Lighter orange for contrast
     GREEN = "\033[92m"
     YELLOW = "\033[93m"
     RED = "\033[91m"
@@ -17,7 +17,7 @@ class Colors:
     BOLD = "\033[1m"
     DIM = "\033[2m"
     WHITE = "\033[97m"
-    LIGHT_BLUE = "\033[94m"  # Same as DEXTER ASCII art
+    LIGHT_BLUE = "\033[38;2;222;124;60m"  # Same as CLARENCE ASCII art (Claude Orange)
 
 
 class Spinner:
@@ -142,6 +142,10 @@ class UI:
         """Print tool parameters before execution."""
         params_display = f" {Colors.DIM}{params}{Colors.ENDC}" if params and len(params) > 0 else ""
         print(f"  {Colors.MAGENTA}→{Colors.ENDC}  Parameters: {params_display}")
+
+    def print_insight_prefix(self):
+        """Print prefix for mid-execution insights."""
+        print(f"\n  {Colors.YELLOW}💡{Colors.ENDC} ", end="")
     
     def print_tool_run(self, result: str):
         """Print when a tool is executed."""
@@ -187,6 +191,64 @@ class UI:
         # Bottom border
         print(f"{Colors.BOLD}{Colors.BLUE}╚{'═' * (width - 2)}╝{Colors.ENDC}\n")
     
+    async def async_stream_answer(self, async_text_chunks) -> str:
+        """Stream answer from an async iterator and display in a box."""
+        width = 80
+
+        print(f"\n{Colors.BOLD}{Colors.BLUE}\u2554{'═' * (width - 2)}\u2557{Colors.ENDC}")
+        title = "ANSWER"
+        padding = (width - len(title) - 2) // 2
+        print(f"{Colors.BOLD}{Colors.BLUE}\u2551{' ' * padding}{title}{' ' * (width - len(title) - padding - 2)}\u2551{Colors.ENDC}")
+        print(f"{Colors.BLUE}\u2560{'═' * (width - 2)}\u2563{Colors.ENDC}")
+        print(f"{Colors.BLUE}\u2551{Colors.ENDC}", end="", flush=True)
+
+        accumulated_text = ""
+        current_line = ""
+
+        try:
+            async for chunk in async_text_chunks:
+                accumulated_text += chunk
+                for char in chunk:
+                    if char == '\n':
+                        padding_needed = max(0, width - 4 - len(current_line))
+                        print(f" {current_line}{' ' * padding_needed} {Colors.BLUE}\u2551{Colors.ENDC}")
+                        print(f"{Colors.BLUE}\u2551{Colors.ENDC}", end="", flush=True)
+                        current_line = ""
+                    else:
+                        current_line += char
+                        if len(current_line) >= width - 6:
+                            last_space = current_line.rfind(' ', 0, width - 6)
+                            if last_space > 0:
+                                line_to_print = current_line[:last_space]
+                                padding_needed = width - 4 - len(line_to_print)
+                                print(f" {line_to_print}{' ' * padding_needed} {Colors.BLUE}\u2551{Colors.ENDC}")
+                                print(f"{Colors.BLUE}\u2551{Colors.ENDC}", end="", flush=True)
+                                current_line = current_line[last_space + 1:]
+                            else:
+                                line_to_print = current_line[:width - 6]
+                                padding_needed = width - 4 - len(line_to_print)
+                                print(f" {line_to_print}{' ' * padding_needed} {Colors.BLUE}\u2551{Colors.ENDC}")
+                                print(f"{Colors.BLUE}\u2551{Colors.ENDC}", end="", flush=True)
+                                current_line = current_line[width - 6:]
+
+            if current_line:
+                padding_needed = max(0, width - 4 - len(current_line))
+                print(f" {current_line}{' ' * padding_needed} {Colors.BLUE}\u2551{Colors.ENDC}")
+            else:
+                print(f"{' ' * (width - 2)}{Colors.BLUE}\u2551{Colors.ENDC}")
+        except Exception:
+            if current_line:
+                padding_needed = max(0, width - 4 - len(current_line))
+                print(f" {current_line}{' ' * padding_needed} {Colors.BLUE}\u2551{Colors.ENDC}")
+            else:
+                print(f"{' ' * (width - 2)}{Colors.BLUE}\u2551{Colors.ENDC}")
+            raise
+
+        print(f"{Colors.BLUE}\u2551{Colors.ENDC}{' ' * (width - 2)}{Colors.BLUE}\u2551{Colors.ENDC}")
+        print(f"{Colors.BOLD}{Colors.BLUE}\u255a{'═' * (width - 2)}\u255d{Colors.ENDC}\n")
+
+        return accumulated_text
+
     def stream_answer(self, text_chunks: Iterator[str]) -> str:
         """
         Stream answer text chunks and display them in a beautiful box.

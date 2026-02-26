@@ -3,19 +3,15 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dexter"
-version = "0.2.3"
-description = "AI agent for financial analysis."
-authors = []
+name = "clarence"
+version = "0.3.0"
+description = "AI day trading execution agent."
+authors = [{name = "phin3has"}]
 requires-python = ">=3.10"
 dependencies = [
-    "googlenewsdecoder>=0.1.7",
-    "langchain>=0.3.27",
-    "langchain-openai>=0.3.35",
-    "langchain-anthropic>=0.3.0",
-    "langchain-google-genai>=2.0.0",
-    "langsmith>=0.3.37",
-    "openai>=2.2.0",
+    "alpaca-py>=0.32.1",
+    "anthropic>=0.40.0",
+    "mcp[cli]>=1.0.0",
     "prompt-toolkit>=3.0.0",
     "pydantic>=2.11.10",
     "python-dotenv>=1.1.1",
@@ -23,7 +19,7 @@ dependencies = [
 ]
 
 [project.scripts]
-dexter-agent = "dexter.cli:main"
+clarence = "clarence.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

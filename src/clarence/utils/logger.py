@@ -1,4 +1,4 @@
-from dexter.utils.ui import UI
+from clarence.utils.ui import UI
 
 
 class Logger:

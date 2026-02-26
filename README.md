@@ -1,117 +1,151 @@
-# Dexter 🤖
+# Clarence
 
-Dexter is an autonomous financial research agent that thinks, plans, and learns as it works. It performs analysis using task planning, self-reflection, and real-time market data. Think Claude Code, but built specifically for financial research.
+An AI-powered day trading execution agent built with Claude and Alpaca. Clarence scans the market for opportunities based on your risk appetite, presents trade recommendations with reasoning, and executes confirmed trades — all from your terminal.
 
+> **WARNING: This software can execute real trades with real money.** By setting `ALPACA_PAPER_TRADE=False`, you enable live trading. You are solely responsible for any financial losses incurred. The author(s) of this project accept no responsibility or liability for any trading losses, damages, or financial harm resulting from the use of this software. Use at your own risk.
 
-<img width="979" height="651" alt="Screenshot 2025-10-14 at 6 12 35 PM" src="https://github.com/user-attachments/assets/5a2859d4-53cf-4638-998a-15cef3c98038" />
+<img width="979" height="651" alt="Clarence CLI" src="https://github.com/user-attachments/assets/5a2859d4-53cf-4638-998a-15cef3c98038" />
 
-## Overview
+## How It Works
 
-Dexter takes complex financial questions and turns them into clear, step-by-step research plans. It runs those tasks using live market data, checks its own work, and refines the results until it has a confident, data-backed answer.  
+Clarence operates in two modes:
 
-**Key Capabilities:**
-- **Intelligent Task Planning**: Automatically decomposes complex queries into structured research steps
-- **Autonomous Execution**: Selects and executes the right tools to gather financial data
-- **Self-Validation**: Checks its own work and iterates until tasks are complete
-- **Real-Time Financial Data**: Access to income statements, balance sheets, and cash flow statements
-- **Safety Features**: Built-in loop detection and step limits to prevent runaway execution
+**Scan Mode** (`/scan`) — Automated opportunity discovery:
+1. Fetches your account info and positions via the Alpaca MCP server
+2. Discovers candidates using market screeners (most active stocks, top movers)
+3. Scores each candidate on volume, spread, volatility, and momentum
+4. Filters by your risk parameters (low / medium / high)
+5. Sends candidates to Claude for trade analysis
+6. Presents each opportunity for your approval, then executes via Alpaca
 
-[![Twitter Follow](https://img.shields.io/twitter/follow/virattt?style=social)](https://twitter.com/virattt)
+**Q&A Mode** (free-form) — Ask anything about your account or the market:
+- "What are my current positions?"
+- "What's the latest news on NVDA?"
+- "Compare AAPL and MSFT financial metrics"
 
-<img width="996" height="639" alt="Screenshot 2025-11-22 at 1 45 07 PM" src="https://github.com/user-attachments/assets/8915fd70-82c9-4775-bdf9-78d5baf28a8a" />
+Claude routes your query through available tools (Alpaca MCP + Financial Datasets API), iterates until it has a complete answer, then responds.
 
+## Prerequisites
 
-### Prerequisites
-
-- Python 3.10 or higher
+- Python 3.10+
 - [uv](https://github.com/astral-sh/uv) package manager
-- OpenAI API key (get [here](https://platform.openai.com/api-keys))
-- Financial Datasets API key (get [here](https://financialdatasets.ai))
+- [Anthropic API key](https://console.anthropic.com/)
+- [Alpaca API credentials](https://alpaca.markets/) (paper trading enabled by default)
+- [Financial Datasets API key](https://financialdatasets.ai) (for news and metrics)
 
-### Installation
+## Installation
 
-1. Clone the repository:
 ```bash
-git clone https://github.com/virattt/dexter.git
-cd dexter
-```
-
-2. Install dependencies with uv:
-```bash
+git clone https://github.com/phin3has/clarence.git
+cd clarence
 uv sync
 ```
 
-3. Set up your environment variables:
+Set up your environment:
+
 ```bash
-# Copy the example environment file
 cp env.example .env
-
-# Edit .env and add your API keys
-# OPENAI_API_KEY=your-openai-api-key
-# FINANCIAL_DATASETS_API_KEY=your-financial-datasets-api-key
+# Edit .env with your API keys
 ```
 
-### Usage
+## Usage
 
-Run Dexter in interactive mode:
 ```bash
-uv run dexter-agent
+uv run clarence
 ```
 
-### Example Queries
+On first run, Clarence walks you through a quick onboarding (name + risk level).
 
-Try asking Dexter questions like:
-- "What was Apple's revenue growth over the last 4 quarters?"
-- "Compare Microsoft and Google's operating margins for 2023"
-- "Analyze Tesla's cash flow trends over the past year"
-- "What is Amazon's debt-to-equity ratio based on recent financials?"
+### Commands
 
-Dexter will automatically:
-1. Break down your question into research tasks
-2. Fetch the necessary financial data
-3. Perform calculations and analysis
-4. Provide a comprehensive, data-rich answer
+| Command | Description |
+|---------|-------------|
+| `/scan` | Scan for day trading opportunities |
+| `/risk` | View or change your risk level |
+| `/positions` | Show current positions |
+| `/status` | Check API connections |
+| `/help` | Show help menu |
+| `exit` | Quit |
+
+Anything else is treated as a free-form question sent to Claude with full tool access.
 
 ## Architecture
 
-Dexter uses a multi-agent architecture with specialized components:
+```
+┌─────────────┐
+│   CLI        │  prompt_toolkit async REPL
+└──────┬──────┘
+       │
+┌──────▼──────┐
+│   Agent      │  Two modes: scan() and run(query)
+└──┬───────┬──┘
+   │       │
+┌──▼──┐ ┌──▼──────────┐
+│Scan │ │ Q&A Loop     │
+│Pipe │ │ (tool-use)   │
+└──┬──┘ └──┬───────────┘
+   │       │
+┌──▼───────▼──┐     ┌──────────────────┐
+│ Alpaca MCP   │     │ Financial         │
+│ Server       │     │ Datasets API      │
+│ (trading +   │     │ (news + metrics)  │
+│  market data)│     └──────────────────┘
+└──────────────┘
+```
 
-- **Planning Agent**: Analyzes queries and creates structured task lists
-- **Action Agent**: Selects appropriate tools and executes research steps
-- **Validation Agent**: Verifies task completion and data sufficiency
-- **Answer Agent**: Synthesizes findings into comprehensive responses
+**Data sources:**
+- **Alpaca MCP Server** — Account, positions, orders, quotes, bars, trades, order execution. Accessed via MCP protocol (`uvx alpaca-mcp-server`).
+- **alpaca-py ScreenerClient** — Market discovery (most active stocks, top movers). Used locally since the MCP server lacks screener endpoints.
+- **Financial Datasets API** — Company news and financial metrics. Local HTTP calls.
+
+**Safety:**
+- Paper trading enabled by default (`ALPACA_PAPER_TRADE=True`)
+- Max 10 tool-call iterations per Q&A query
+- Loop detection (aborts if same action repeats 3 times)
+- Every trade requires explicit user approval
 
 ## Project Structure
 
 ```
-dexter/
-├── src/
-│   ├── dexter/
-│   │   ├── agent.py      # Main agent orchestration logic
-│   │   ├── model.py      # LLM interface
-│   │   ├── tools.py      # Financial data tools
-│   │   ├── prompts.py    # System prompts for each component
-│   │   ├── schemas.py    # Pydantic models
-│   │   ├── utils/        # Utility functions
-│   │   └── cli.py        # CLI entry point
-├── pyproject.toml
-└── uv.lock
+src/clarence/
+├── agent.py          # Two-mode async agent (scan + Q&A)
+├── scanner.py        # Opportunity scanning pipeline
+├── mcp_client.py     # Alpaca MCP server wrapper
+├── model.py          # Anthropic Claude SDK interface
+├── prompts.py        # System and task prompts
+├── schemas.py        # Pydantic models
+├── risk.py           # Risk levels and filtering
+├── cli.py            # Async CLI entry point
+├── tools/
+│   ├── __init__.py   # Screener functions (alpaca-py)
+│   └── finance/      # Financial Datasets API tools
+│       ├── api.py    # HTTP helper
+│       ├── news.py   # Company news
+│       └── metrics.py# Financial metrics
+└── utils/
+    ├── profile.py    # User profile management
+    ├── scoring.py    # Day trading scoring algorithm
+    ├── help.py       # Help menu and status checks
+    ├── ui.py         # Terminal UI (spinners, streaming)
+    ├── intro.py      # Welcome message
+    └── logger.py     # Logger
 ```
 
-## Configuration
+## Risk System
 
-Dexter supports configuration via the `Agent` class initialization:
+Three configurable risk levels control position sizing, stop losses, and candidate filtering:
 
-```python
-from dexter.agent import Agent
+| Parameter | Low | Medium | High |
+|-----------|-----|--------|------|
+| Max spread | 0.10% | 0.25% | 0.50% |
+| Position size | 1-2% | 2-4% | 3-5% |
+| Stop loss | 1% | 2% | 3% |
+| Min volume | 1M | 500K | 200K |
+| Min score | 70 | 55 | 40 |
 
-agent = Agent(
-    max_steps=20,              # Global safety limit
-    max_steps_per_task=5       # Per-task iteration limit
-)
-```
+Change your risk level at any time with `/risk`.
 
-## How to Contribute
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -119,10 +153,8 @@ agent = Agent(
 4. Push to the branch
 5. Create a Pull Request
 
-**Important**: Please keep your pull requests small and focused.  This will make it easier to review and merge.
-
+Keep pull requests small and focused.
 
 ## License
 
-This project is licensed under the MIT License.
-
+This project is licensed under the [MIT License](LICENSE).
